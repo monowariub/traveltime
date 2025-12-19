@@ -1,0 +1,45 @@
+// Firestore Security Rules for TravelTime AI
+// These rules should be deployed to your Firebase project
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Users collection - users can only read/write their own document
+    // Admins can read all users
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && 
+        request.auth.token.admin == true;
+    }
+    
+    // Messages collection - authenticated users can read and write
+    // Admins can read all messages
+    match /messages/{messageId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && 
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.keys().hasAll(['userId', 'userName', 'messageText', 'messageType', 'timestamp']);
+      allow update, delete: if false; // Messages cannot be updated or deleted
+      allow read: if request.auth != null && 
+        request.auth.token.admin == true;
+    }
+    
+    // Destinations collection - anyone can read, only admins can write
+    match /destinations/{destinationId} {
+      allow read: if true;
+      allow create, update, delete: if request.auth != null && 
+        request.auth.token.admin == true;
+    }
+    
+    // Recommendations collection - users can only read/write their own recommendations
+    // Admins can read all recommendations
+    match /recommendations/{recommendationId} {
+      allow read, create: if request.auth != null && 
+        request.resource.data.userId == request.auth.uid;
+      allow update, delete: if false; // Recommendations cannot be updated or deleted
+      allow read: if request.auth != null && 
+        request.auth.token.admin == true;
+    }
+  }
+}

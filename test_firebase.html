@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase Integration Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .test-button {
+            background-color: #1a73e8;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background-color: #0d62d9;
+        }
+        .result {
+            background-color: #f5f7fa;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+        }
+        .success {
+            border-left: 4px solid #34a853;
+        }
+        .error {
+            border-left: 4px solid #ea4335;
+        }
+    </style>
+</head>
+<body>
+    <h1>Firebase Integration Test</h1>
+    <p>This page helps test the Firebase integration for the TravelTime AI project.</p>
+    
+    <div class="test-section">
+        <h2>Authentication Tests</h2>
+        <button class="test-button" onclick="testFirebaseAuth()">Test Firebase Authentication</button>
+        <div id="authResult" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Firestore Tests</h2>
+        <button class="test-button" onclick="testFirestoreConnection()">Test Firestore Connection</button>
+        <div id="firestoreResult" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Data Operations Tests</h2>
+        <button class="test-button" onclick="testDataOperations()">Test Data Operations</button>
+        <div id="dataResult" class="result"></div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    
+    <!-- Firebase Configuration -->
+    <script type="module" src="js/firebase-config.js"></script>
+    
+    <script>
+        // Wait for Firebase to load
+        setTimeout(() => {
+            // Test Firebase Authentication
+            async function testFirebaseAuth() {
+                const resultDiv = document.getElementById('authResult');
+                try {
+                    // Check if Firebase Auth is available
+                    if (typeof firebase !== 'undefined' && firebase.auth) {
+                        resultDiv.innerHTML = "✅ Firebase Authentication module loaded successfully";
+                        resultDiv.className = "result success";
+                    } else {
+                        throw new Error("Firebase Authentication module not found");
+                    }
+                } catch (error) {
+                    resultDiv.innerHTML = "❌ Error: " + error.message;
+                    resultDiv.className = "result error";
+                }
+            }
+            
+            // Test Firestore Connection
+            async function testFirestoreConnection() {
+                const resultDiv = document.getElementById('firestoreResult');
+                try {
+                    // Check if Firestore is available
+                    if (typeof firebase !== 'undefined' && firebase.firestore) {
+                        resultDiv.innerHTML = "✅ Firestore module loaded successfully";
+                        resultDiv.className = "result success";
+                    } else {
+                        throw new Error("Firestore module not found");
+                    }
+                } catch (error) {
+                    resultDiv.innerHTML = "❌ Error: " + error.message;
+                    resultDiv.className = "result error";
+                }
+            }
+            
+            // Test Data Operations
+            async function testDataOperations() {
+                const resultDiv = document.getElementById('dataResult');
+                try {
+                    resultDiv.innerHTML = "⏳ Testing data operations...\n";
+                    
+                    // Test creating a test document
+                    const db = firebase.firestore();
+                    const testCollection = db.collection('test');
+                    
+                    resultDiv.innerHTML += "✅ Connected to Firestore\n";
+                    
+                    // Test adding a document
+                    const docRef = await testCollection.add({
+                        testName: "Firebase Integration Test",
+                        timestamp: new Date()
+                    });
+                    
+                    resultDiv.innerHTML += "✅ Successfully added test document with ID: " + docRef.id + "\n";
+                    
+                    // Test reading the document
+                    const docSnap = await docRef.get();
+                    if (docSnap.exists) {
+                        resultDiv.innerHTML += "✅ Successfully read test document\n";
+                    }
+                    
+                    // Test deleting the document
+                    await docRef.delete();
+                    resultDiv.innerHTML += "✅ Successfully deleted test document\n";
+                    
+                    resultDiv.innerHTML += "\n🎉 All data operations completed successfully!";
+                    resultDiv.className = "result success";
+                } catch (error) {
+                    resultDiv.innerHTML = "❌ Error: " + error.message;
+                    resultDiv.className = "result error";
+                }
+            }
+        }, 2000);
+    </script>
+</body>
+</html>

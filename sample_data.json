@@ -1,0 +1,67 @@
+{
+  "destinations": [
+    {
+      "name": "Cox's Bazar",
+      "description": "Cox's Bazar is home to the world's longest natural sea beach, offering stunning sunsets, golden sands, and a relaxing coastal vibe in Bangladesh.",
+      "imageUrl": "Capture.PNG",
+      "bestTime": "Spring",
+      "travelerType": "Family Friendly",
+      "metadata": {
+        "location": "Bangladesh",
+        "type": "Beach",
+        "rating": 4.5
+      }
+    },
+    {
+      "name": "Saint Martin",
+      "description": "Saint Martin's Island is Bangladesh's only coral island, famous for its crystal-clear water, coral reefs, and peaceful tropical beauty.",
+      "imageUrl": "Image/Capture.PNG",
+      "bestTime": "Year-round",
+      "travelerType": "Couples",
+      "metadata": {
+        "location": "Bangladesh",
+        "type": "Island",
+        "rating": 4.7
+      }
+    },
+    {
+      "name": "Sreemangal",
+      "description": "Discover Bangladesh's incredible natural beauty on this three day Sreemangal tour. Spot native birds at the famous Baikka Beel bird sanctuary.",
+      "imageUrl": "Image/Capture 2.PNG",
+      "bestTime": "Summer/Fall",
+      "travelerType": "Adventure Seekers",
+      "metadata": {
+        "location": "Bangladesh",
+        "type": "Nature",
+        "rating": 4.3
+      }
+    },
+    {
+      "name": "Sundarbans",
+      "description": "The Sundarbans is the largest mangrove forest in the world and home to the famous Royal Bengal Tiger. Experience unique wildlife and eco-tourism.",
+      "imageUrl": "https://images.unsplash.com/photo-1548013146-72479768bada?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80",
+      "bestTime": "Winter",
+      "travelerType": "Wildlife Enthusiasts",
+      "metadata": {
+        "location": "Bangladesh",
+        "type": "Forest",
+        "rating": 4.6
+      }
+    },
+    {
+      "name": "Sylhet",
+      "description": "Known for its rolling tea gardens, tropical forests, and vibrant Sylheti culture. A perfect blend of natural beauty and cultural heritage.",
+      "imageUrl": "https://images.unsplash.com/photo-1548013146-72479768bada?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80",
+      "bestTime": "Winter/Spring",
+      "travelerType": "Culture Lovers",
+      "metadata": {
+        "location": "Bangladesh",
+        "type": "Hill Station",
+        "rating": 4.4
+      }
+    }
+  ],
+  "users": [],
+  "messages": [],
+  "recommendations": []
+}
