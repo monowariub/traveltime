@@ -1,27 +1,19 @@
 // Admin Panel JavaScript for TravelTime AI
-// This file handles all Firebase interactions for the admin panel
+// This file handles all data interactions for the admin panel using the Data Service
 
-import { auth, db } from './firebase-config.js';
-import { 
-  signInWithEmailAndPassword, 
-  signOut, 
-  onAuthStateChanged 
-} from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
-import { 
-  collection, 
-  doc, 
-  getDoc, 
-  getDocs, 
-  setDoc, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  where, 
-  orderBy, 
-  limit,
-  Timestamp
-} from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+import {
+  onAuthStateChange,
+  loadUsers,
+  saveUserAdmin,
+  deleteUser,
+  getDestinations,
+  saveDestination,
+  deleteDestination,
+  getAllMessages,
+  deleteMessage,
+  getAllRecommendations,
+  logoutUser
+} from './data-service.js';
 
 // Global variables
 let currentUser = null;
@@ -61,13 +53,12 @@ const adminElements = {
 // Initialize Admin Panel
 export async function initializeAdminPanel() {
   // Check authentication state
-  onAuthStateChanged(auth, async (user) => {
+  onAuthStateChange(async (user) => {
     if (user) {
       currentUser = user;
-      
+
       // Check if user is admin
-      const isAdmin = await checkAdminStatus(user.uid);
-      if (isAdmin) {
+      if (user.role === 'admin') {
         // Load admin data
         await loadAdminData();
         updateAdminUI();
@@ -83,31 +74,21 @@ export async function initializeAdminPanel() {
   });
 }
 
-// Check if user has admin privileges
-async function checkAdminStatus(uid) {
-  try {
-    const userDoc = await getDoc(doc(db, "users", uid));
-    if (userDoc.exists()) {
-      const userData = userDoc.data();
-      return userData.role === 'admin';
-    }
-    return false;
-  } catch (error) {
-    console.error("Error checking admin status:", error);
-    return false;
-  }
-}
-
 // Load all admin data
 async function loadAdminData() {
   try {
-    await Promise.all([
+    const [users, destinations, messages, recommendations] = await Promise.all([
       loadUsers(),
-      loadDestinations(),
-      loadMessages(),
-      loadRecommendations()
+      getDestinations(),
+      getAllMessages(),
+      getAllRecommendations()
     ]);
-    
+
+    usersData = users;
+    destinationsData = destinations;
+    messagesData = messages;
+    recommendationsData = recommendations;
+
     updateStats();
     renderUsersTable();
     renderDestinationsTable();
@@ -118,136 +99,87 @@ async function loadAdminData() {
   }
 }
 
-// Load users data
-async function loadUsers() {
-  try {
-    const usersQuery = query(collection(db, "users"), orderBy("createdAt", "desc"));
-    const usersSnapshot = await getDocs(usersQuery);
-    
-    usersData = [];
-    usersSnapshot.forEach((doc) => {
-      usersData.push({ id: doc.id, ...doc.data() });
-    });
-  } catch (error) {
-    console.error("Error loading users:", error);
-  }
-}
-
-// Load destinations data
-async function loadDestinations() {
-  try {
-    const destinationsQuery = query(collection(db, "destinations"), orderBy("name"));
-    const destinationsSnapshot = await getDocs(destinationsQuery);
-    
-    destinationsData = [];
-    destinationsSnapshot.forEach((doc) => {
-      destinationsData.push({ id: doc.id, ...doc.data() });
-    });
-  } catch (error) {
-    console.error("Error loading destinations:", error);
-  }
-}
-
-// Load messages data
-async function loadMessages() {
-  try {
-    const messagesQuery = query(collection(db, "messages"), orderBy("timestamp", "desc"), limit(50));
-    const messagesSnapshot = await getDocs(messagesQuery);
-    
-    messagesData = [];
-    messagesSnapshot.forEach((doc) => {
-      messagesData.push({ id: doc.id, ...doc.data() });
-    });
-  } catch (error) {
-    console.error("Error loading messages:", error);
-  }
-}
-
-// Load recommendations data
-async function loadRecommendations() {
-  try {
-    const recommendationsQuery = query(collection(db, "recommendations"), orderBy("timestamp", "desc"));
-    const recommendationsSnapshot = await getDocs(recommendationsQuery);
-    
-    recommendationsData = [];
-    recommendationsSnapshot.forEach((doc) => {
-      recommendationsData.push({ id: doc.id, ...doc.data() });
-    });
-  } catch (error) {
-    console.error("Error loading recommendations:", error);
-  }
-}
-
 // Update statistics
 function updateStats() {
-  adminElements.usersCount.textContent = usersData.length;
-  adminElements.destinationsCount.textContent = destinationsData.length;
-  adminElements.messagesCount.textContent = messagesData.length;
-  adminElements.recommendationsCount.textContent = recommendationsData.length;
+  if (adminElements.usersCount) adminElements.usersCount.textContent = usersData.length;
+  if (adminElements.destinationsCount) adminElements.destinationsCount.textContent = destinationsData.length;
+  if (adminElements.messagesCount) adminElements.messagesCount.textContent = messagesData.length;
+  if (adminElements.recommendationsCount) adminElements.recommendationsCount.textContent = recommendationsData.length;
 }
 
 // Update admin UI
 function updateAdminUI() {
-  if (currentUser) {
-    adminElements.adminName.textContent = "Admin";
+  if (currentUser && adminElements.adminName) {
+    adminElements.adminName.textContent = currentUser.name || "Admin";
   }
 }
 
 // Render users table
-function renderUsersTable(searchTerm = '') {
+export function renderUsersTable(searchTerm = '') {
+  if (!adminElements.usersTableBody) return;
+
   let filteredUsers = usersData;
-  
+
   if (searchTerm) {
-    filteredUsers = usersData.filter(user => 
+    filteredUsers = usersData.filter(user =>
       user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }
-  
+
   if (filteredUsers.length === 0) {
     adminElements.usersTableBody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No users found</td></tr>';
     return;
   }
-  
-  adminElements.usersTableBody.innerHTML = filteredUsers.map(user => `
+
+  adminElements.usersTableBody.innerHTML = filteredUsers.map(user => {
+    let dateStr = 'N/A';
+    if (user.createdAt) {
+      if (typeof user.createdAt === 'string') dateStr = new Date(user.createdAt).toLocaleDateString();
+      else if (user.createdAt.seconds) dateStr = new Date(user.createdAt.seconds * 1000).toLocaleDateString();
+    }
+
+    return `
     <tr>
       <td>${user.name}</td>
       <td>${user.email}</td>
-      <td>${user.createdAt ? new Date(user.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}</td>
+      <td>${dateStr}</td>
       <td><span class="badge ${user.role === 'admin' ? 'success' : 'warning'}">${user.role || 'user'}</span></td>
       <td class="action-buttons">
-        <button class="action-btn edit" data-id="${user.id}"><i class="fas fa-edit"></i></button>
-        <button class="action-btn delete" data-id="${user.id}"><i class="fas fa-trash"></i></button>
+        <button class="action-btn edit" data-id="${user.uid || user.id}"><i class="fas fa-edit"></i></button>
+        <button class="action-btn delete" data-id="${user.uid || user.id}"><i class="fas fa-trash"></i></button>
       </td>
     </tr>
-  `).join('');
-  
+  `}).join('');
+
   // Add event listeners to action buttons
   document.querySelectorAll('#usersTableBody .action-btn.edit').forEach(btn => {
     btn.addEventListener('click', (e) => editUser(e.currentTarget.dataset.id));
   });
-  
+
   document.querySelectorAll('#usersTableBody .action-btn.delete').forEach(btn => {
-    btn.addEventListener('click', (e) => deleteUser(e.currentTarget.dataset.id));
+    btn.addEventListener('click', (e) => deleteUserHandler(e.currentTarget.dataset.id));
   });
 }
 
 // Render destinations table
-function renderDestinationsTable(searchTerm = '') {
+export function renderDestinationsTable(searchTerm = '') {
+  if (!adminElements.destinationsTableBody) return;
+
   let filteredDestinations = destinationsData;
-  
+
   if (searchTerm) {
-    filteredDestinations = destinationsData.filter(destination => 
+    filteredDestinations = destinationsData.filter(destination =>
       destination.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (destination.description && destination.description.toLowerCase().includes(searchTerm.toLowerCase()))
     );
   }
-  
+
   if (filteredDestinations.length === 0) {
     adminElements.destinationsTableBody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No destinations found</td></tr>';
     return;
   }
-  
+
   adminElements.destinationsTableBody.innerHTML = filteredDestinations.map(destination => `
     <tr>
       <td>${destination.name}</td>
@@ -261,55 +193,64 @@ function renderDestinationsTable(searchTerm = '') {
       </td>
     </tr>
   `).join('');
-  
+
   // Add event listeners to action buttons
   document.querySelectorAll('#destinationsTableBody .action-btn.edit').forEach(btn => {
     btn.addEventListener('click', (e) => editDestination(e.currentTarget.dataset.id));
   });
-  
+
   document.querySelectorAll('#destinationsTableBody .action-btn.delete').forEach(btn => {
-    btn.addEventListener('click', (e) => deleteDestination(e.currentTarget.dataset.id));
+    btn.addEventListener('click', (e) => deleteDestinationHandler(e.currentTarget.dataset.id));
   });
 }
 
 // Render messages table
-function renderMessagesTable(searchTerm = '') {
+export function renderMessagesTable(searchTerm = '') {
+  if (!adminElements.messagesTableBody) return;
+
   let filteredMessages = messagesData;
-  
+
   if (searchTerm) {
-    filteredMessages = messagesData.filter(message => 
+    filteredMessages = messagesData.filter(message =>
       (message.userName && message.userName.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (message.messageText && message.messageText.toLowerCase().includes(searchTerm.toLowerCase()))
     );
   }
-  
+
   if (filteredMessages.length === 0) {
     adminElements.messagesTableBody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No messages found</td></tr>';
     return;
   }
-  
-  adminElements.messagesTableBody.innerHTML = filteredMessages.map(message => `
+
+  adminElements.messagesTableBody.innerHTML = filteredMessages.map(message => {
+    let dateStr = 'N/A';
+    if (message.timestamp) {
+      if (message.timestamp.seconds) dateStr = new Date(message.timestamp.seconds * 1000).toLocaleString();
+      else dateStr = new Date(message.timestamp).toLocaleString();
+    }
+
+    return `
     <tr>
       <td>${message.userName || 'Anonymous'}</td>
       <td>${message.messageText.substring(0, 50)}${message.messageText.length > 50 ? '...' : ''}</td>
       <td>${message.messageType === 'bot' ? 'Bot' : 'User'}</td>
-      <td>${message.timestamp ? new Date(message.timestamp.seconds * 1000).toLocaleString() : 'N/A'}</td>
+      <td>${dateStr}</td>
       <td class="action-buttons">
         <button class="action-btn delete" data-id="${message.id}"><i class="fas fa-trash"></i></button>
       </td>
     </tr>
-  `).join('');
-  
+  `}).join('');
+
   // Add event listeners to action buttons
   document.querySelectorAll('#messagesTableBody .action-btn.delete').forEach(btn => {
-    btn.addEventListener('click', (e) => deleteMessage(e.currentTarget.dataset.id));
+    btn.addEventListener('click', (e) => deleteMessageHandler(e.currentTarget.dataset.id));
   });
 }
 
 // Render activity log
 function renderActivityLog() {
+  if (!adminElements.activityTableBody) return;
   // For now, we'll show a simple static log
-  // In a real implementation, this would show actual admin activities
   adminElements.activityTableBody.innerHTML = `
     <tr>
       <td>System</td>
@@ -319,34 +260,35 @@ function renderActivityLog() {
     </tr>
     <tr>
       <td>System</td>
-      <td>Retrieved user data</td>
-      <td>Users Collection</td>
-      <td>${new Date(Date.now() - 60000).toLocaleTimeString()}</td>
+      <td>Mock data initialized</td>
+      <td>LocalStorage</td>
+      <td>${new Date().toLocaleTimeString()}</td>
     </tr>
   `;
 }
 
 // Edit user
 function editUser(userId) {
-  const user = usersData.find(u => u.id === userId);
+  const user = usersData.find(u => u.uid === userId || u.id === userId);
   if (user) {
     document.getElementById('userModalTitle').textContent = 'Edit User';
-    document.getElementById('userId').value = user.id;
+    document.getElementById('userId').value = user.uid || user.id;
     document.getElementById('userName').value = user.name || '';
     document.getElementById('userEmail').value = user.email || '';
     document.getElementById('userRole').value = user.role || 'user';
-    
+
     adminElements.userModal.classList.add('show');
   }
 }
 
-// Delete user
-async function deleteUser(userId) {
+// Delete user handler
+async function deleteUserHandler(userId) {
   if (confirm('Are you sure you want to delete this user?')) {
     try {
-      await deleteDoc(doc(db, "users", userId));
+      await deleteUser(userId);
       showAlert(adminElements.usersAlert, 'User deleted successfully!', 'success');
-      await loadUsers();
+      // Refresh local data
+      usersData = await loadUsers();
       renderUsersTable();
       updateStats();
     } catch (error) {
@@ -367,22 +309,24 @@ function editDestination(destinationId) {
     document.getElementById('destinationImageUrl').value = destination.imageUrl || '';
     document.getElementById('destinationBestTime').value = destination.bestTime || '';
     document.getElementById('destinationType').value = destination.travelerType || '';
-    
+
     if (destination.metadata && destination.metadata.rating) {
       document.getElementById('destinationRating').value = destination.metadata.rating;
     }
-    
+
     adminElements.destinationModal.classList.add('show');
   }
 }
 
-// Delete destination
-async function deleteDestination(destinationId) {
+// Delete destination handler
+async function deleteDestinationHandler(destinationId) {
   if (confirm('Are you sure you want to delete this destination?')) {
     try {
-      await deleteDoc(doc(db, "destinations", destinationId));
+      await deleteDestination(destinationId);
       showAlert(adminElements.destinationsAlert, 'Destination deleted successfully!', 'success');
-      await loadDestinations();
+      // Refresh local data
+      const result = await getDestinations();
+      destinationsData = result.data;
       renderDestinationsTable();
       updateStats();
     } catch (error) {
@@ -392,13 +336,14 @@ async function deleteDestination(destinationId) {
   }
 }
 
-// Delete message
-async function deleteMessage(messageId) {
+// Delete message handler
+async function deleteMessageHandler(messageId) {
   if (confirm('Are you sure you want to delete this message?')) {
     try {
-      await deleteDoc(doc(db, "messages", messageId));
+      await deleteMessage(messageId);
       showAlert(adminElements.messagesAlert, 'Message deleted successfully!', 'success');
-      await loadMessages();
+      // Refresh local data
+      messagesData = await getAllMessages();
       renderMessagesTable();
       updateStats();
     } catch (error) {
@@ -408,51 +353,28 @@ async function deleteMessage(messageId) {
   }
 }
 
-// Save user
-async function saveUser() {
+// Save user handler
+async function saveUserHandler() {
   const userId = document.getElementById('userId').value;
   const name = document.getElementById('userName').value;
   const email = document.getElementById('userEmail').value;
   const password = document.getElementById('userPassword').value;
   const role = document.getElementById('userRole').value;
-  
+
   try {
-    if (userId) {
-      // Update existing user
-      const userRef = doc(db, "users", userId);
-      const updateData = {
-        name: name,
-        email: email,
-        role: role
-      };
-      
-      // Only update password if provided
-      if (password) {
-        updateData.password = password;
-      }
-      
-      await updateDoc(userRef, updateData);
-      showAlert(adminElements.usersAlert, 'User updated successfully!', 'success');
-    } else {
-      // Create new user
-      const newUser = {
-        name: name,
-        email: email,
-        role: role,
-        createdAt: Timestamp.now()
-      };
-      
-      // Add password if provided
-      if (password) {
-        newUser.password = password;
-      }
-      
-      await addDoc(collection(db, "users"), newUser);
-      showAlert(adminElements.usersAlert, 'User created successfully!', 'success');
-    }
-    
+    const userData = {
+      id: userId,
+      name,
+      email,
+      role
+    };
+    if (password) userData.password = password;
+
+    await saveUserAdmin(userData);
+    showAlert(adminElements.usersAlert, 'User saved successfully!', 'success');
+
     adminElements.userModal.classList.remove('show');
-    await loadUsers();
+    usersData = await loadUsers();
     renderUsersTable();
     updateStats();
   } catch (error) {
@@ -461,8 +383,8 @@ async function saveUser() {
   }
 }
 
-// Save destination
-async function saveDestination() {
+// Save destination handler
+async function saveDestinationHandler() {
   const destinationId = document.getElementById('destinationId').value;
   const name = document.getElementById('destinationName').value;
   const description = document.getElementById('destinationDescription').value;
@@ -470,7 +392,7 @@ async function saveDestination() {
   const bestTime = document.getElementById('destinationBestTime').value;
   const travelerType = document.getElementById('destinationType').value;
   const rating = parseFloat(document.getElementById('destinationRating').value) || null;
-  
+
   try {
     const destinationData = {
       name: name,
@@ -480,25 +402,19 @@ async function saveDestination() {
       travelerType: travelerType,
       metadata: {
         rating: rating,
-        location: "Bangladesh", // Default for this app
+        location: "Bangladesh",
         type: travelerType
       }
     };
-    
-    if (destinationId) {
-      // Update existing destination
-      const destinationRef = doc(db, "destinations", destinationId);
-      await updateDoc(destinationRef, destinationData);
-      showAlert(adminElements.destinationsAlert, 'Destination updated successfully!', 'success');
-    } else {
-      // Create new destination
-      destinationData.createdAt = Timestamp.now();
-      await addDoc(collection(db, "destinations"), destinationData);
-      showAlert(adminElements.destinationsAlert, 'Destination created successfully!', 'success');
-    }
-    
+
+    if (destinationId) destinationData.id = destinationId;
+
+    await saveDestination(destinationData);
+    showAlert(adminElements.destinationsAlert, 'Destination saved successfully!', 'success');
+
     adminElements.destinationModal.classList.remove('show');
-    await loadDestinations();
+    const result = await getDestinations();
+    destinationsData = result.data;
     renderDestinationsTable();
     updateStats();
   } catch (error) {
@@ -509,9 +425,10 @@ async function saveDestination() {
 
 // Show alert
 function showAlert(alertElement, message, type) {
+  if (!alertElement) return;
   alertElement.textContent = message;
   alertElement.className = `alert show ${type}`;
-  
+
   // Hide after 3 seconds
   setTimeout(() => {
     alertElement.classList.remove('show');
@@ -523,10 +440,9 @@ if (adminElements.logoutBtn) {
   adminElements.logoutBtn.addEventListener('click', async () => {
     if (confirm('Are you sure you want to logout?')) {
       try {
-        await signOut(auth);
+        await logoutUser();
         window.location.href = 'index.html';
       } catch (error) {
-        console.error("Error logging out:", error);
         alert('Error logging out: ' + error.message);
       }
     }
@@ -552,11 +468,11 @@ if (adminElements.addDestinationBtn) {
 }
 
 if (adminElements.saveUserBtn) {
-  adminElements.saveUserBtn.addEventListener('click', saveUser);
+  adminElements.saveUserBtn.addEventListener('click', saveUserHandler);
 }
 
 if (adminElements.saveDestinationBtn) {
-  adminElements.saveDestinationBtn.addEventListener('click', saveDestination);
+  adminElements.saveDestinationBtn.addEventListener('click', saveDestinationHandler);
 }
 
 if (adminElements.userSearch) {
@@ -577,15 +493,4 @@ if (adminElements.messageSearch) {
   });
 }
 
-// Initialize the admin panel when the module is imported
-// initializeAdminPanel();
-
-export { 
-  loadUsers, 
-  loadDestinations, 
-  loadMessages, 
-  loadRecommendations,
-  renderUsersTable,
-  renderDestinationsTable,
-  renderMessagesTable
-};
+export { loadUsers };

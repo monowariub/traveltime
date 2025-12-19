@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>User Dashboard | TravelTime AI</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Roboto:wght@300;400;500&display=swap"
+        rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -32,7 +35,11 @@
             line-height: 1.6;
         }
 
-        h1, h2, h3, h4, h5 {
+        h1,
+        h2,
+        h3,
+        h4,
+        h5 {
             font-family: 'Poppins', sans-serif;
             font-weight: 600;
         }
@@ -106,7 +113,8 @@
             border-radius: 6px;
         }
 
-        .nav-link:hover, .nav-link.active {
+        .nav-link:hover,
+        .nav-link.active {
             color: var(--primary);
             background-color: rgba(26, 115, 232, 0.1);
         }
@@ -485,7 +493,8 @@
             border-collapse: collapse;
         }
 
-        th, td {
+        th,
+        td {
             padding: 15px 20px;
             text-align: left;
             border-bottom: 1px solid var(--light-gray);
@@ -662,6 +671,7 @@
         }
     </style>
 </head>
+
 <body>
     <!-- Header Section -->
     <header>
@@ -673,7 +683,7 @@
                     <div class="dashboard-title">User Dashboard</div>
                 </div>
             </div>
-            
+
             <ul class="nav-menu">
                 <li class="nav-item"><a href="#" class="nav-link active" data-tab="overview">Overview</a></li>
                 <li class="nav-item"><a href="#" class="nav-link" data-tab="profile">Profile</a></li>
@@ -681,7 +691,7 @@
                 <li class="nav-item"><a href="#" class="nav-link" data-tab="chat">Chat History</a></li>
                 <li class="nav-item"><a href="#" class="nav-link" data-tab="recommendations">Recommendations</a></li>
             </ul>
-            
+
             <div class="user-actions">
                 <div class="user-info">
                     <span id="userName">User</span>
@@ -793,7 +803,8 @@
                         </div>
                     </div>
                     <div class="recommendation-item">
-                        <img src="https://images.unsplash.com/photo-1548013146-72479768bada?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80" alt="Destination" class="recommendation-image">
+                        <img src="https://images.unsplash.com/photo-1548013146-72479768bada?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80"
+                            alt="Destination" class="recommendation-image">
                         <div class="recommendation-content">
                             <div class="recommendation-name">Bali, Indonesia</div>
                             <div class="recommendation-desc">Perfect blend of beaches, culture, and adventure</div>
@@ -882,7 +893,7 @@
             <div class="form-container">
                 <h2 class="form-title">Select Your Preferences</h2>
                 <p>Choose your travel interests to get personalized recommendations</p>
-                
+
                 <div style="display: flex; flex-wrap: wrap; gap: 10px; margin: 20px 0;">
                     <button class="btn btn-outline preference-btn" data-pref="beach">🏖️ Beach</button>
                     <button class="btn btn-outline preference-btn" data-pref="mountain">⛰️ Mountain</button>
@@ -893,11 +904,11 @@
                     <button class="btn btn-outline preference-btn" data-pref="luxury">💎 Luxury</button>
                     <button class="btn btn-outline preference-btn" data-pref="family">👨‍👩‍👧‍👦 Family</button>
                 </div>
-                
+
                 <div class="preferences-container" id="selectedPreferences" style="margin: 20px 0;">
                     <!-- Selected preferences will appear here -->
                 </div>
-                
+
                 <button class="btn btn-primary" id="savePreferencesBtn">
                     <i class="fas fa-save"></i> Save Preferences
                 </button>
@@ -994,28 +1005,23 @@
         </div>
     </div>
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-    
-    <!-- Firebase Configuration -->
-    <script type="module" src="js/firebase-config.js"></script>
+    <!-- Data Service -->
+    <!-- <script type="module" src="js/data-service.js"></script> -->
     <script type="module" src="js/user_dashboard.js"></script>
-    
+
     <script type="module">
         // Import dashboard functions
         import { initializeUserDashboard } from './js/user_dashboard.js';
-        
+
         // Wait for DOM to load
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             // Set current date
             const now = new Date();
-            document.getElementById('currentDate').textContent = now.toLocaleDateString('en-US', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
+            document.getElementById('currentDate').textContent = now.toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
             });
 
             // Tab navigation
@@ -1023,13 +1029,13 @@
             const tabContents = document.querySelectorAll('.tab-content');
 
             tabLinks.forEach(link => {
-                link.addEventListener('click', function(e) {
+                link.addEventListener('click', function (e) {
                     e.preventDefault();
-                    
+
                     // Remove active class from all tabs
                     tabLinks.forEach(l => l.classList.remove('active'));
                     tabContents.forEach(c => c.classList.remove('active'));
-                    
+
                     // Add active class to clicked tab
                     this.classList.add('active');
                     const tabId = this.getAttribute('data-tab') + '-tab';
@@ -1042,7 +1048,7 @@
             const modalCloseButtons = document.querySelectorAll('.modal-close');
 
             modalCloseButtons.forEach(button => {
-                button.addEventListener('click', function() {
+                button.addEventListener('click', function () {
                     const modal = this.closest('.modal');
                     modal.classList.remove('show');
                 });
@@ -1050,7 +1056,7 @@
 
             // Close modal when clicking outside
             modals.forEach(modal => {
-                modal.addEventListener('click', function(e) {
+                modal.addEventListener('click', function (e) {
                     if (e.target === modal) {
                         modal.classList.remove('show');
                     }
@@ -1058,8 +1064,9 @@
             });
 
             // Initialize the user dashboard
-            // initializeUserDashboard();
+            initializeUserDashboard();
         });
     </script>
 </body>
+
 </html>

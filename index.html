@@ -1,17 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TravelTime AI | Intelligent Tourism Platform</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Roboto:wght@300;400;500&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 </head>
+
 <body>
     <!-- Header Section -->
     <header>
@@ -20,11 +24,11 @@
                 <i class="fas fa-globe-americas logo-icon"></i>
                 <div class="logo-text">Travel<span>Time</span> AI</div>
             </div>
-            
+
             <button class="mobile-menu-btn" id="mobileMenuBtn">
                 <i class="fas fa-bars"></i>
             </button>
-            
+
             <ul class="nav-menu" id="navMenu">
                 <li class="nav-item"><a href="#home" class="nav-link">Home</a></li>
                 <li class="nav-item"><a href="#features" class="nav-link">AI Features</a></li>
@@ -32,7 +36,7 @@
                 <li class="nav-item"><a href="#recommendation" class="nav-link">AI Recommendation</a></li>
                 <li class="nav-item"><a href="#about" class="nav-link">About</a></li>
             </ul>
-            
+
             <div class="user-actions">
                 <button class="btn btn-outline chatbot-toggle-btn" id="chatbotToggle">
                     <i class="fas fa-robot"></i>
@@ -42,13 +46,15 @@
                     <div class="user-avatar" id="userAvatar">U</div>
                     <div class="user-name" id="userName"></div>
                     <button class="logout-btn" id="logoutBtn">Logout</button>
-                    <a href="user_dashboard.html" class="btn btn-outline" style="text-decoration: none; display: flex; align-items: center; gap: 5px; margin-left: 10px;">
+                    <a href="user_dashboard.html" class="btn btn-outline"
+                        style="text-decoration: none; display: flex; align-items: center; gap: 5px; margin-left: 10px;">
                         <i class="fas fa-user-circle"></i> Dashboard
                     </a>
                 </div>
                 <button class="btn btn-primary" id="signInBtn">Sign In</button>
                 <button class="btn btn-outline" id="loginBtn">Login</button>
-                <a href="admin_login.html" class="btn btn-outline" style="text-decoration: none; display: flex; align-items: center; gap: 5px;">
+                <a href="admin_login.html" class="btn btn-outline"
+                    style="text-decoration: none; display: flex; align-items: center; gap: 5px;">
                     <i class="fas fa-user-shield"></i> Admin
                 </a>
             </div>
@@ -60,13 +66,18 @@
         <div class="container hero-container">
             <div class="hero-content">
                 <h1 class="hero-title">Discover Your Perfect Journey with <span>AI-Powered</span> Travel Planning</h1>
-                <p class="hero-description">TravelTime AI uses advanced artificial intelligence to analyze your preferences, budget, and travel style to create personalized itineraries that match your dream vacation.</p>
-                
+                <p class="hero-description">TravelTime AI uses advanced artificial intelligence to analyze your
+                    preferences, budget, and travel style to create personalized itineraries that match your dream
+                    vacation.</p>
+
                 <div class="search-box">
                     <form class="search-form" id="searchForm">
                         <div class="form-group">
                             <label for="destination">Destination</label>
-                            <input type="text" id="destination" class="form-control" placeholder="Where do you want to go?">
+                            <select id="destination" class="form-control">
+                                <option value="" disabled selected>Select a destination</option>
+                                <!-- Populated by JS -->
+                            </select>
                         </div>
                         <div class="form-group">
                             <label for="travel-date">Travel Date</label>
@@ -83,15 +94,33 @@
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>&nbsp;</label>
-                            <button type="submit" class="btn btn-primary" style="width: 100%;">Find AI Recommendations</button>
+                            <label for="travel-mode">Travel Mode</label>
+                            <select id="travel-mode" class="form-control">
+                                <option value="bus">Bus</option>
+                                <option value="train">Train</option>
+                                <option value="plane">Plane</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="hotel-type">Hotel Type</label>
+                            <select id="hotel-type" class="form-control">
+                                <option value="budget">Budget Hotel (1x)</option>
+                                <option value="standard" selected>Standard Hotel (1.5x)</option>
+                                <option value="luxury">Luxury Hotel (2.5x)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Est. Cost: <span id="costEstimation"
+                                    style="color: var(--primary); font-weight: bold;">$0</span></label>
+                            <button type="submit" class="btn btn-primary" style="width: 100%;">Book / Recommend</button>
                         </div>
                     </form>
-                </div>
+                </div> <!-- End search-box -->
             </div>
-            
+
             <div class="hero-image">
-                <img src="https://images.unsplash.com/photo-1488646953014-85cb44e25828?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1035&q=80" alt="AI Travel Planning" class="hero-img">
+                <img src="https://images.unsplash.com/photo-1488646953014-85cb44e25828?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1035&q=80"
+                    alt="AI Travel Planning" class="hero-img">
             </div>
         </div>
     </section>
@@ -104,25 +133,29 @@
                 <div class="feature-card">
                     <i class="fas fa-robot feature-icon"></i>
                     <h3 class="feature-title">Smart Itinerary Generator</h3>
-                    <p>Our AI creates personalized daily itineraries based on your interests, time constraints, and local events.</p>
+                    <p>Our AI creates personalized daily itineraries based on your interests, time constraints, and
+                        local events.</p>
                 </div>
-                
+
                 <div class="feature-card">
                     <i class="fas fa-comments-dollar feature-icon"></i>
                     <h3 class="feature-title">Budget Optimization</h3>
-                    <p>Get recommendations that fit your budget with real-time price tracking and cost-saving suggestions.</p>
+                    <p>Get recommendations that fit your budget with real-time price tracking and cost-saving
+                        suggestions.</p>
                 </div>
-                
+
                 <div class="feature-card">
                     <i class="fas fa-users feature-icon"></i>
                     <h3 class="feature-title">Group Preference Analysis</h3>
-                    <p>Traveling with others? Our AI balances everyone's preferences to create the perfect group itinerary.</p>
+                    <p>Traveling with others? Our AI balances everyone's preferences to create the perfect group
+                        itinerary.</p>
                 </div>
-                
+
                 <div class="feature-card">
                     <i class="fas fa-cloud-sun feature-icon"></i>
                     <h3 class="feature-title">Weather-Adaptive Plans</h3>
-                    <p>Dynamic itinerary adjustments based on real-time weather forecasts and seasonal considerations.</p>
+                    <p>Dynamic itinerary adjustments based on real-time weather forecasts and seasonal considerations.
+                    </p>
                 </div>
             </div>
         </div>
@@ -137,31 +170,34 @@
                     <img src="Capture.PNG" alt="Kyoto, Japan" class="destination-img">
                     <div class="destination-content">
                         <h3 class="destination-title">Cox's Bazar</h3>
-                        <p class="destination-description">Cox’s Bazar is home to the world’s longest natural sea beach, offering stunning sunsets, golden sands, and a relaxing coastal vibe in Bangladesh.</p>
+                        <p class="destination-description">Cox’s Bazar is home to the world’s longest natural sea beach,
+                            offering stunning sunsets, golden sands, and a relaxing coastal vibe in Bangladesh.</p>
                         <div class="destination-meta">
                             <span><i class="far fa-calendar"></i> Best in Spring</span>
                             <span><i class="fas fa-users"></i> Family Friendly</span>
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="destination-card">
                     <img src="Image/Capture.PNG" alt="Santorini, Greece" class="destination-img">
                     <div class="destination-content">
                         <h3 class="destination-title"> Saint Martin </h3>
-                        <p class="destination-description">Saint Martin’s Island is Bangladesh’s only coral island, famous for its crystal-clear water, coral reefs, and peaceful tropical beauty</p>
+                        <p class="destination-description">Saint Martin’s Island is Bangladesh’s only coral island,
+                            famous for its crystal-clear water, coral reefs, and peaceful tropical beauty</p>
                         <div class="destination-meta">
                             <span><i class="far fa-calendar"></i> Year-round</span>
                             <span><i class="fas fa-users"></i> Couples</span>
                         </div>
                     </div>
                 </div>
-                
+
                 <div class="destination-card">
                     <img src="Image/Capture 2.PNG" alt="Banff, Canada" class="destination-img">
                     <div class="destination-content">
                         <h3 class="destination-title">Sreemangal</h3>
-                        <p class="destination-description">Discover Bangladesh’s incredible natural beauty on this three day Sreemangal tour. Spot native birds at the famous Baikka Beel bird sanctuary</p>
+                        <p class="destination-description">Discover Bangladesh’s incredible natural beauty on this three
+                            day Sreemangal tour. Spot native birds at the famous Baikka Beel bird sanctuary</p>
                         <div class="destination-meta">
                             <span><i class="far fa-calendar"></i> Summer/Fall</span>
                             <span><i class="fas fa-users"></i> Adventure Seekers</span>
@@ -176,10 +212,10 @@
     <section class="section" id="recommendation">
         <div class="container">
             <h2 class="section-title">Get Your <span>Personalized</span> AI Recommendation</h2>
-            
+
             <div class="recommendation-container">
                 <h3 class="recommendation-title">Tell us about your travel preferences</h3>
-                
+
                 <div class="ai-thinking" id="aiThinking">
                     <span>AI is analyzing your preferences</span>
                     <div class="ai-dots">
@@ -188,13 +224,15 @@
                         <span></span>
                     </div>
                 </div>
-                
+
                 <div class="recommendation-result" id="recommendationResult">
                     <div class="recommendation-card">
-                        <img src="https://images.unsplash.com/photo-1548013146-72479768bada?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80" alt="Recommended Destination" class="recommendation-img">
+                        <img src="https://images.unsplash.com/photo-1548013146-72479768bada?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80"
+                            alt="Recommended Destination" class="recommendation-img">
                         <div class="recommendation-info">
                             <h3>Your AI-Recommended Destination: Bali, Indonesia</h3>
-                            <p>Based on your preference for tropical climates, cultural experiences, and budget-friendly options, our AI recommends Bali. Here's why:</p>
+                            <p>Based on your preference for tropical climates, cultural experiences, and budget-friendly
+                                options, our AI recommends Bali. Here's why:</p>
                             <ul>
                                 <li>Perfect blend of beaches, culture, and adventure</li>
                                 <li>Rich cultural heritage with temples and traditional dances</li>
@@ -206,7 +244,7 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div style="width: 100%; margin-top: 30px;">
                     <h4 style="margin-bottom: 15px; text-align: center;">Quick Preference Selector</h4>
                     <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;">
@@ -218,7 +256,7 @@
                         <button class="btn btn-outline preference-btn" data-pref="budget">💰 Budget</button>
                     </div>
                 </div>
-                
+
                 <button class="btn btn-primary" id="getRecommendationBtn" style="margin-top: 30px; padding: 12px 30px;">
                     <i class="fas fa-robot"></i> Generate AI Recommendation
                 </button>
@@ -261,12 +299,12 @@
             </button>
             <h2 id="authModalTitle">Login</h2>
             <p id="authModalDescription">Enter your credentials to access your account</p>
-            
+
             <div class="auth-tabs">
                 <button class="auth-tab active" id="loginTabBtn">Login</button>
                 <button class="auth-tab" id="signInTabBtn">Sign In</button>
             </div>
-            
+
             <!-- Login Form -->
             <form class="auth-form active" id="loginForm">
                 <div class="form-group">
@@ -284,7 +322,7 @@
                 <p class="auth-success" id="loginSuccess"></p>
                 <button type="submit" class="btn btn-primary" style="margin-top:14px; width:100%;">Login</button>
             </form>
-            
+
             <!-- Sign In (Registration) Form -->
             <form class="auth-form" id="signInForm">
                 <div class="form-group">
@@ -301,11 +339,13 @@
                 </div>
                 <div class="form-group">
                     <label for="signInConfirmPassword">Confirm Password</label>
-                    <input type="password" id="signInConfirmPassword" class="form-control" placeholder="••••••••" required>
+                    <input type="password" id="signInConfirmPassword" class="form-control" placeholder="••••••••"
+                        required>
                 </div>
                 <p class="auth-error" id="signInError"></p>
                 <p class="auth-success" id="signInSuccess"></p>
-                <button type="submit" class="btn btn-primary" style="margin-top:14px; width:100%;">Create Account</button>
+                <button type="submit" class="btn btn-primary" style="margin-top:14px; width:100%;">Create
+                    Account</button>
             </form>
         </div>
     </div>
@@ -316,7 +356,8 @@
             <div class="footer-container">
                 <div class="footer-column">
                     <h3>TravelTime AI</h3>
-                    <p>The world's first fully AI-powered travel planning platform that creates personalized itineraries based on your unique preferences and constraints.</p>
+                    <p>The world's first fully AI-powered travel planning platform that creates personalized itineraries
+                        based on your unique preferences and constraints.</p>
                     <div class="social-icons">
                         <a href="#"><i class="fab fa-facebook-f"></i></a>
                         <a href="#"><i class="fab fa-twitter"></i></a>
@@ -324,7 +365,7 @@
                         <a href="#"><i class="fab fa-linkedin-in"></i></a>
                     </div>
                 </div>
-                
+
                 <div class="footer-column">
                     <h3>Quick Links</h3>
                     <ul class="footer-links">
@@ -335,7 +376,7 @@
                         <li><a href="#">How It Works</a></li>
                     </ul>
                 </div>
-                
+
                 <div class="footer-column">
                     <h3>Resources</h3>
                     <ul class="footer-links">
@@ -346,7 +387,7 @@
                         <li><a href="#">Partner Hotels</a></li>
                     </ul>
                 </div>
-                
+
                 <div class="footer-column">
                     <h3>Contact Us</h3>
                     <ul class="footer-links">
@@ -356,7 +397,7 @@
                     </ul>
                 </div>
             </div>
-            
+
             <div class="copyright">
                 <p>&copy; 2023 TravelTime AI. All rights reserved. | Privacy Policy | Terms of Service</p>
             </div>
@@ -367,4 +408,5 @@
     <script type="module" src="js/firebase-config.js"></script>
     <script src="script.js"></script>
 </body>
+
 </html>

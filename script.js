@@ -1,17 +1,19 @@
-// Import Firebase utilities
-import { 
-  registerUser, 
-  loginUser, 
-  logoutUser, 
-  onAuthStateChange, 
-  getUserDocument, 
-  updateUserPreferences, 
-  sendChatMessage, 
-  getChatMessages,
-  getDestinations,
-  saveRecommendation,
-  getUserRecommendations
-} from './js/firebase-utils.js';
+// Import Data Service utilities
+import {
+    registerUser,
+    loginUser,
+    logoutUser,
+    onAuthStateChange,
+    getUserDocument,
+    updateUserPreferences,
+    sendChatMessage,
+    getChatMessages,
+    getDestinations,
+    saveRecommendation,
+    getUserRecommendations,
+    calculateTripCost,
+    createBooking
+} from './js/data-service.js';
 
 // DOM Elements
 const mobileMenuBtn = document.getElementById('mobileMenuBtn');
@@ -55,17 +57,25 @@ const chatbotForm = document.getElementById('chatbotForm');
 const chatbotInput = document.getElementById('chatbotInput');
 const chatbotMessages = document.getElementById('chatbotMessages');
 
-// Check if user is logged in from Firebase Auth
+// Booking elements
+const destinationInput = document.getElementById('destination');
+const travelersInput = document.getElementById('travelers');
+const travelModeInput = document.getElementById('travel-mode');
+const hotelTypeInput = document.getElementById('hotel-type');
+const costEstimationDisplay = document.getElementById('costEstimation');
+
+
+// Check if user is logged in
 let currentUser = null;
 let currentUserData = null;
 
-// Initialize Firebase Auth listener
+// Initialize Auth listener
 onAuthStateChange(async (user) => {
     if (user) {
         // User is signed in
         currentUser = user;
-        
-        // Get user data from Firestore
+
+        // Get user data
         const userDataResult = await getUserDocument(user.uid);
         if (userDataResult.success) {
             currentUserData = userDataResult.data;
@@ -82,8 +92,8 @@ onAuthStateChange(async (user) => {
 // Mobile Menu Toggle
 mobileMenuBtn.addEventListener('click', () => {
     navMenu.classList.toggle('active');
-    mobileMenuBtn.innerHTML = navMenu.classList.contains('active') 
-        ? '<i class="fas fa-times"></i>' 
+    mobileMenuBtn.innerHTML = navMenu.classList.contains('active')
+        ? '<i class="fas fa-times"></i>'
         : '<i class="fas fa-bars"></i>';
 });
 
@@ -95,25 +105,92 @@ document.querySelectorAll('.nav-link').forEach(link => {
     });
 });
 
-// Search Form Submission
-searchForm.addEventListener('submit', (e) => {
+// ==========================
+// BOOKING & COST ESTIMATION
+// ==========================
+
+// Populate DestinationsDropdown
+async function populateDestinations() {
+    if (!destinationInput) return;
+    const result = await getDestinations();
+    if (result.success && result.data) {
+        // Keep default option
+        destinationInput.innerHTML = '<option value="" disabled selected>Select a destination</option>';
+        result.data.forEach(dest => {
+            const option = document.createElement('option');
+            option.value = dest.id; // Use ID for value
+            option.textContent = dest.name;
+            option.setAttribute('data-name', dest.name);
+            destinationInput.appendChild(option);
+        });
+    }
+}
+
+async function updateCostEstimation() {
+    // For Select, value is ID. For Name we need the text or data attribute.
+    const destinationId = destinationInput.value;
+    const selectedOption = destinationInput.options[destinationInput.selectedIndex];
+    const destinationName = selectedOption ? selectedOption.getAttribute('data-name') : '';
+
+    const travelers = travelersInput.value;
+    const travelMode = travelModeInput ? travelModeInput.value : 'bus';
+    const hotelType = hotelTypeInput ? hotelTypeInput.value : 'standard';
+
+    if (destinationId) {
+        const cost = await calculateTripCost(destinationName, travelers, travelMode, hotelType, destinationId);
+        if (costEstimationDisplay) {
+            costEstimationDisplay.textContent = `$${cost.toFixed(2)}`;
+        }
+    }
+}
+
+// Event listeners for cost updates
+if (destinationInput) destinationInput.addEventListener('change', updateCostEstimation);
+if (travelersInput) travelersInput.addEventListener('change', updateCostEstimation);
+if (travelModeInput) travelModeInput.addEventListener('change', updateCostEstimation);
+if (hotelTypeInput) hotelTypeInput.addEventListener('change', updateCostEstimation);
+
+// Search/Booking Form Submission
+searchForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const destination = document.getElementById('destination').value;
+    const destinationId = destinationInput.value;
+    const selectedOption = destinationInput.options[destinationInput.selectedIndex];
+    const destinationName = selectedOption ? selectedOption.getAttribute('data-name') : '';
+
     const date = document.getElementById('travel-date').value;
     const travelers = document.getElementById('travelers').value;
-    
-    if (!destination) {
-        alert('Please enter a destination');
+    const travelMode = document.getElementById('travel-mode') ? document.getElementById('travel-mode').value : 'bus';
+    const hotelType = document.getElementById('hotel-type') ? document.getElementById('hotel-type').value : 'standard';
+
+    if (!destinationId) {
+        alert('Please select a destination');
         return;
     }
-    
-    alert(`Searching for AI recommendations for ${travelers} travelers to ${destination} on ${date}`);
+
+    if (!currentUser) {
+        alert('Please login to book a trip or get personalized recommendations.');
+        showAuthModal('login');
+        return;
+    }
+
+    if (confirm(`Do you want to book a trip to ${destinationName} for ${travelers} people by ${travelMode} staying in a ${hotelType} hotel on ${date}?`)) {
+        const result = await createBooking(currentUser.uid, destinationId, destinationName, date, travelers, travelMode, hotelType);
+        if (result.success) {
+            alert(`Booking confirmed! Total cost: $${result.totalCost}`);
+            // Redirect or update UI
+        } else {
+            alert('Booking failed: ' + result.error);
+        }
+    }
+
+    // Also trigger recommendation section scoll
     document.getElementById('recommendation').scrollIntoView({ behavior: 'smooth' });
 });
 
+
 // Set minimum date for travel date to today
 const today = new Date().toISOString().split('T')[0];
-document.getElementById('travel-date').min = today;
+if (document.getElementById('travel-date')) document.getElementById('travel-date').min = today;
 
 // Track selected preferences
 let selectedPreferences = [];
@@ -122,7 +199,7 @@ let selectedPreferences = [];
 preferenceBtns.forEach(btn => {
     btn.addEventListener('click', async () => {
         const preference = btn.getAttribute('data-pref');
-        
+
         if (selectedPreferences.includes(preference)) {
             // Remove preference if already selected
             selectedPreferences = selectedPreferences.filter(p => p !== preference);
@@ -134,51 +211,56 @@ preferenceBtns.forEach(btn => {
             btn.classList.remove('btn-outline');
             btn.classList.add('btn-primary');
         }
-        
-        // Save preferences to Firebase if user is logged in
+
+        // Save preferences if user is logged in
         if (currentUser) {
             await updateUserPreferences(currentUser.uid, selectedPreferences);
         }
-        
+
         console.log('Selected preferences:', selectedPreferences);
     });
 });
 
 // Generate AI recommendation
-getRecommendationBtn.addEventListener('click', () => {
-    // Show AI thinking animation
-    aiThinking.style.display = 'flex';
-    recommendationResult.style.display = 'none';
-    
-    // Simulate AI processing time
-    setTimeout(() => {
-        // Hide AI thinking animation
-        aiThinking.style.display = 'none';
-        
-        // Show recommendation result
-        recommendationResult.style.display = 'block';
-        
-        // Scroll to the result
-        recommendationResult.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }, 2000);
-});
+if (getRecommendationBtn) {
+    getRecommendationBtn.addEventListener('click', () => {
+        // Show AI thinking animation
+        aiThinking.style.display = 'flex';
+        recommendationResult.style.display = 'none';
+
+        // Simulate AI processing time
+        setTimeout(() => {
+            // Hide AI thinking animation
+            aiThinking.style.display = 'none';
+
+            // Show recommendation result
+            recommendationResult.style.display = 'block';
+
+            // Scroll to the result
+            recommendationResult.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 2000);
+    });
+}
 
 // Destination cards interaction
 destinationCards.forEach(card => {
     card.addEventListener('click', () => {
         const destination = card.querySelector('.destination-title').textContent;
-        alert(`You selected ${destination}! This would show more details in a real application.`);
+        // Pre-fill form
+        if (destinationInput) destinationInput.value = destination;
+        document.getElementById('home').scrollIntoView({ behavior: 'smooth' });
+        updateCostEstimation();
     });
 });
 
 // Smooth scrolling for anchor links
 document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-    anchor.addEventListener('click', function(e) {
+    anchor.addEventListener('click', function (e) {
         e.preventDefault();
-        
+
         const targetId = this.getAttribute('href');
         if (targetId === '#') return;
-        
+
         const targetElement = document.querySelector(targetId);
         if (targetElement) {
             window.scrollTo({
@@ -193,19 +275,21 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
 function updateUserUI() {
     if (currentUser && currentUserData) {
         // User is logged in
-        userProfile.style.display = 'flex';
-        signInBtn.style.display = 'none';
-        loginBtn.style.display = 'none';
-        
+        if (userProfile) userProfile.style.display = 'flex';
+        if (signInBtn) signInBtn.style.display = 'none';
+        if (loginBtn) loginBtn.style.display = 'none';
+
         // Set user info
-        userName.textContent = currentUserData.name;
-        userAvatar.textContent = currentUserData.name.charAt(0).toUpperCase();
-        userAvatar.style.backgroundColor = getRandomColor();
+        if (userName) userName.textContent = currentUserData.name;
+        if (userAvatar) {
+            userAvatar.textContent = currentUserData.name.charAt(0).toUpperCase();
+            userAvatar.style.backgroundColor = getRandomColor();
+        }
     } else {
         // User is not logged in
-        userProfile.style.display = 'none';
-        signInBtn.style.display = 'block';
-        loginBtn.style.display = 'block';
+        if (userProfile) userProfile.style.display = 'none';
+        if (signInBtn) signInBtn.style.display = 'block';
+        if (loginBtn) loginBtn.style.display = 'block';
     }
 }
 
@@ -218,13 +302,13 @@ function getRandomColor() {
 function showAuthModal(defaultTab = 'login') {
     authModal.classList.add('open');
     document.body.style.overflow = 'hidden';
-    
+
     // Reset forms
     loginError.style.display = 'none';
     loginSuccess.style.display = 'none';
     signInError.style.display = 'none';
     signInSuccess.style.display = 'none';
-    
+
     // Show the appropriate tab
     if (defaultTab === 'signin') {
         switchToSignInTab();
@@ -260,183 +344,169 @@ function switchToSignInTab() {
 }
 
 // Auth event listeners
-signInBtn.addEventListener('click', () => showAuthModal('signin'));
-loginBtn.addEventListener('click', () => showAuthModal('login'));
+if (signInBtn) signInBtn.addEventListener('click', () => showAuthModal('signin'));
+if (loginBtn) loginBtn.addEventListener('click', () => showAuthModal('login'));
 
 // Tab switching
-loginTabBtn.addEventListener('click', switchToLoginTab);
-signInTabBtn.addEventListener('click', switchToSignInTab);
+if (loginTabBtn) loginTabBtn.addEventListener('click', switchToLoginTab);
+if (signInTabBtn) signInTabBtn.addEventListener('click', switchToSignInTab);
 
-authClose.addEventListener('click', hideAuthModal);
+if (authClose) authClose.addEventListener('click', hideAuthModal);
 
 // Close modal when clicking outside
-authModal.addEventListener('click', (e) => {
-    if (e.target === authModal) {
-        hideAuthModal();
-    }
-});
+if (authModal) {
+    authModal.addEventListener('click', (e) => {
+        if (e.target === authModal) {
+            hideAuthModal();
+        }
+    });
+}
 
 // ========== LOGIN FORM SUBMISSION ==========
-loginForm.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    const email = document.getElementById('loginEmail').value.trim();
-    const password = document.getElementById('loginPassword').value.trim();
-    
-    // Simple validation
-    if (!email || !password) {
-        loginError.textContent = 'Please enter both email and password.';
-        loginError.style.display = 'block';
-        loginSuccess.style.display = 'none';
-        return;
-    }
-    
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-        loginError.textContent = 'Please enter a valid email address.';
-        loginError.style.display = 'block';
-        loginSuccess.style.display = 'none';
-        return;
-    }
-    
-    // Login with Firebase
-    const loginResult = await loginUser(email, password);
-    
-    if (loginResult.success) {
-        // Login successful
-        loginError.style.display = 'none';
-        loginSuccess.textContent = 'Login successful! Redirecting...';
-        loginSuccess.style.display = 'block';
-        
-        // Get user data from Firestore
-        const userDataResult = await getUserDocument(loginResult.user.uid);
-        if (userDataResult.success) {
-            currentUserData = userDataResult.data;
+if (loginForm) {
+    loginForm.addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        const email = document.getElementById('loginEmail').value.trim();
+        const password = document.getElementById('loginPassword').value.trim();
+
+        // Simple validation
+        if (!email || !password) {
+            loginError.textContent = 'Please enter both email and password.';
+            loginError.style.display = 'block';
+            loginSuccess.style.display = 'none';
+            return;
         }
-        
-        // Update UI
-        setTimeout(() => {
-            updateUserUI();
-            hideAuthModal();
-            loginForm.reset();
-            
-            // Show welcome message
-            alert(`Welcome back, ${currentUserData.name}!`);
-        }, 1000);
-    } else {
-        // Login failed
-        loginSuccess.style.display = 'none';
-        loginError.textContent = loginResult.error || 'Invalid email or password. Please try again.';
-        loginError.style.display = 'block';
-    }
-});
+
+        // Login
+        const loginResult = await loginUser(email, password);
+
+        if (loginResult.success) {
+            // Login successful
+            loginError.style.display = 'none';
+            loginSuccess.textContent = 'Login successful! Redirecting...';
+            loginSuccess.style.display = 'block';
+
+            // Get user data
+            const userDataResult = await getUserDocument(loginResult.user.uid);
+            if (userDataResult.success) {
+                currentUserData = userDataResult.data;
+            }
+
+            // Update UI
+            setTimeout(() => {
+                updateUserUI();
+                hideAuthModal();
+                loginForm.reset();
+
+                // Show welcome message
+                alert(`Welcome back, ${currentUserData.name}!`);
+            }, 1000);
+        } else {
+            // Login failed
+            loginSuccess.style.display = 'none';
+            loginError.textContent = loginResult.error || 'Invalid email or password. Please try again.';
+            loginError.style.display = 'block';
+        }
+    });
+}
 
 // ========== SIGN IN (REGISTRATION) FORM SUBMISSION ==========
-signInForm.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    const name = document.getElementById('signInName').value.trim();
-    const email = document.getElementById('signInEmail').value.trim();
-    const password = document.getElementById('signInPassword').value.trim();
-    const confirmPassword = document.getElementById('signInConfirmPassword').value.trim();
-    
-    // Validation
-    if (!name || !email || !password || !confirmPassword) {
-        signInError.textContent = 'Please fill in all fields.';
-        signInError.style.display = 'block';
-        signInSuccess.style.display = 'none';
-        return;
-    }
-    
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-        signInError.textContent = 'Please enter a valid email address.';
-        signInError.style.display = 'block';
-        signInSuccess.style.display = 'none';
-        return;
-    }
-    
-    // Password validation
-    if (password.length < 6) {
-        signInError.textContent = 'Password must be at least 6 characters.';
-        signInError.style.display = 'block';
-        signInSuccess.style.display = 'none';
-        return;
-    }
-    
-    // Password confirmation
-    if (password !== confirmPassword) {
-        signInError.textContent = 'Passwords do not match.';
-        signInError.style.display = 'block';
-        signInSuccess.style.display = 'none';
-        return;
-    }
-    
-    // Register user with Firebase
-    const registerResult = await registerUser(name, email, password);
-    
-    if (registerResult.success) {
-        // Registration successful
-        signInError.style.display = 'none';
-        signInSuccess.textContent = 'Account created successfully! Welcome to TravelTime AI.';
-        signInSuccess.style.display = 'block';
-        
-        // Set current user data
-        currentUser = registerResult.user;
-        currentUserData = {
-            uid: registerResult.user.uid,
-            name: name,
-            email: email
-        };
-        
-        // Update UI and close modal
-        setTimeout(() => {
-            updateUserUI();
-            hideAuthModal();
-            signInForm.reset();
-            
-            // Show welcome message
-            alert(`Welcome to TravelTime AI, ${name}! Your account has been created.`);
-        }, 1500);
-    } else {
-        // Registration failed
-        signInSuccess.style.display = 'none';
-        signInError.textContent = registerResult.error || 'Failed to create account. Please try again.';
-        signInError.style.display = 'block';
-    }
-});
+if (signInForm) {
+    signInForm.addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        const name = document.getElementById('signInName').value.trim();
+        const email = document.getElementById('signInEmail').value.trim();
+        const password = document.getElementById('signInPassword').value.trim();
+        const confirmPassword = document.getElementById('signInConfirmPassword').value.trim();
+
+        // Validation
+        if (!name || !email || !password || !confirmPassword) {
+            signInError.textContent = 'Please fill in all fields.';
+            signInError.style.display = 'block';
+            signInSuccess.style.display = 'none';
+            return;
+        }
+
+        // Password confirmation
+        if (password !== confirmPassword) {
+            signInError.textContent = 'Passwords do not match.';
+            signInError.style.display = 'block';
+            signInSuccess.style.display = 'none';
+            return;
+        }
+
+        // Register user
+        const registerResult = await registerUser(name, email, password);
+
+        if (registerResult.success) {
+            // Registration successful
+            signInError.style.display = 'none';
+            signInSuccess.textContent = 'Account created successfully! Welcome to TravelTime AI.';
+            signInSuccess.style.display = 'block';
+
+            // Set current user data
+            currentUser = registerResult.user;
+            currentUserData = {
+                uid: registerResult.user.uid,
+                name: name,
+                email: email
+            };
+
+            // Update UI and close modal
+            setTimeout(() => {
+                updateUserUI();
+                hideAuthModal();
+                signInForm.reset();
+
+                // Show welcome message
+                alert(`Welcome to TravelTime AI, ${name}! Your account has been created.`);
+            }, 1500);
+        } else {
+            // Registration failed
+            signInSuccess.style.display = 'none';
+            signInError.textContent = registerResult.error || 'Failed to create account. Please try again.';
+            signInError.style.display = 'block';
+        }
+    });
+}
 
 // ========== LOGOUT FUNCTION ==========
-logoutBtn.addEventListener('click', async () => {
-    if (confirm('Are you sure you want to logout?')) {
-        const logoutResult = await logoutUser();
-        
-        if (logoutResult.success) {
-            currentUser = null;
-            currentUserData = null;
-            updateUserUI();
-            alert('You have been logged out successfully.');
-        } else {
-            alert('Error logging out. Please try again.');
+if (logoutBtn) {
+    logoutBtn.addEventListener('click', async () => {
+        if (confirm('Are you sure you want to logout?')) {
+            const logoutResult = await logoutUser();
+
+            if (logoutResult.success) {
+                currentUser = null;
+                currentUserData = null;
+                updateUserUI();
+                alert('You have been logged out successfully.');
+            } else {
+                alert('Error logging out. Please try again.');
+            }
         }
-    }
-});
+    });
+}
 
 // ========== CHATBOT FUNCTIONS ==========
 // Toggle chatbot visibility
-chatbotToggle.addEventListener('click', () => {
-    chatbotWidget.classList.toggle('show');
-    if (chatbotWidget.classList.contains('show')) {
-        chatbotInput.focus();
-    }
-});
+if (chatbotToggle) {
+    chatbotToggle.addEventListener('click', () => {
+        chatbotWidget.classList.toggle('show');
+        if (chatbotWidget.classList.contains('show')) {
+            chatbotInput.focus();
+        }
+    });
+}
 
 // Close chatbot
-chatbotClose.addEventListener('click', () => {
-    chatbotWidget.classList.remove('show');
-});
+if (chatbotClose) {
+    chatbotClose.addEventListener('click', () => {
+        chatbotWidget.classList.remove('show');
+    });
+}
 
 // Add message to chatbot
 function addChatMessage(text, sender) {
@@ -444,21 +514,20 @@ function addChatMessage(text, sender) {
     messageDiv.className = `chat-message ${sender}`;
     messageDiv.textContent = text;
     chatbotMessages.appendChild(messageDiv);
-    
+
     // Scroll to bottom
     chatbotMessages.scrollTop = chatbotMessages.scrollHeight;
 }
 
-// Add message to chatbot and save to Firebase
-async function addChatMessageWithFirebase(text, sender) {
+// Add message to chatbot and save
+async function addChatMessageWithService(text, sender) {
     // Add to UI first
     addChatMessage(text, sender);
-    
-    // Save to Firebase if user is logged in
+
+    // Save if user is logged in
     if (currentUser && sender === 'user') {
-        await sendChatMessage(currentUser.uid, currentUserData.name, text, 'user');
+        await sendChatMessage(currentUser.uid, currentUserData ? currentUserData.name : 'User', text, 'user');
     } else if (sender === 'bot') {
-        // For bot messages, we'll use a placeholder UID
         await sendChatMessage('bot', 'TravelTime AI', text, 'bot');
     }
 }
@@ -466,7 +535,7 @@ async function addChatMessageWithFirebase(text, sender) {
 // Get AI response
 function getAIResponse(userMessage) {
     const lowerMsg = userMessage.toLowerCase();
-    
+
     if (lowerMsg.includes('hello') || lowerMsg.includes('hi') || lowerMsg.includes('hey')) {
         return "Hello! I'm your AI travel assistant. How can I help you plan your perfect trip today?";
     } else if (lowerMsg.includes('budget')) {
@@ -491,53 +560,57 @@ function getAIResponse(userMessage) {
 }
 
 // Chatbot form submission
-chatbotForm.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    const userMessage = chatbotInput.value.trim();
-    if (!userMessage) return;
-    
-    // Add user message and save to Firebase
-    await addChatMessageWithFirebase(userMessage, 'user');
-    
-    // Clear input
-    chatbotInput.value = '';
-    
-    // Show typing indicator
-    const typingIndicator = document.createElement('div');
-    typingIndicator.className = 'chat-message bot';
-    typingIndicator.innerHTML = '<i>AI is thinking...</i>';
-    chatbotMessages.appendChild(typingIndicator);
-    chatbotMessages.scrollTop = chatbotMessages.scrollHeight;
-    
-    // Simulate AI thinking time
-    setTimeout(async () => {
-        // Remove typing indicator
-        chatbotMessages.removeChild(typingIndicator);
-        
-        // Add AI response and save to Firebase
-        const aiResponse = getAIResponse(userMessage);
-        await addChatMessageWithFirebase(aiResponse, 'bot');
-    }, 800 + Math.random() * 800);
-});
+if (chatbotForm) {
+    chatbotForm.addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        const userMessage = chatbotInput.value.trim();
+        if (!userMessage) return;
+
+        // Add user message
+        await addChatMessageWithService(userMessage, 'user');
+
+        // Clear input
+        chatbotInput.value = '';
+
+        // Show typing indicator
+        const typingIndicator = document.createElement('div');
+        typingIndicator.className = 'chat-message bot';
+        typingIndicator.innerHTML = '<i>AI is thinking...</i>';
+        chatbotMessages.appendChild(typingIndicator);
+        chatbotMessages.scrollTop = chatbotMessages.scrollHeight;
+
+        // Simulate AI thinking time
+        setTimeout(async () => {
+            // Remove typing indicator
+            chatbotMessages.removeChild(typingIndicator);
+
+            // Add AI response
+            const aiResponse = getAIResponse(userMessage);
+            await addChatMessageWithService(aiResponse, 'bot');
+        }, 800 + Math.random() * 800);
+    });
+}
 
 // Allow pressing Enter to send message
-chatbotInput.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        chatbotForm.dispatchEvent(new Event('submit'));
-    }
-});
+if (chatbotInput) {
+    chatbotInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            chatbotForm.dispatchEvent(new Event('submit'));
+        }
+    });
+}
 
 // Initialize chatbot with a welcome message if empty
-if (chatbotMessages.children.length === 1) {
+if (chatbotMessages && chatbotMessages.children.length === 1) {
     addChatMessage("Hi! I'm your AI travel assistant. Ask me about destinations, budgets, or travel planning!", 'bot');
 }
 
-// Close chatbot when clicking outside (optional)
-document.addEventListener('click', function(e) {
-    if (chatbotWidget.classList.contains('show') && 
-        !chatbotWidget.contains(e.target) && 
+// Close chatbot when clicking outside
+document.addEventListener('click', function (e) {
+    if (chatbotWidget && chatbotWidget.classList.contains('show') &&
+        !chatbotWidget.contains(e.target) &&
         !chatbotToggle.contains(e.target)) {
         chatbotWidget.classList.remove('show');
     }
@@ -546,32 +619,20 @@ document.addEventListener('click', function(e) {
 // Initialize - set today's date as min for travel date
 window.addEventListener('DOMContentLoaded', () => {
     const travelDateInput = document.getElementById('travel-date');
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowFormatted = tomorrow.toISOString().split('T')[0];
-    travelDateInput.min = tomorrowFormatted;
-    
-    // Set default date to 7 days from now
-    const nextWeek = new Date(today);
-    nextWeek.setDate(nextWeek.getDate() + 7);
-    const nextWeekFormatted = nextWeek.toISOString().split('T')[0];
-    travelDateInput.value = nextWeekFormatted;
-    
+    if (travelDateInput) {
+        const today = new Date();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const tomorrowFormatted = tomorrow.toISOString().split('T')[0];
+        travelDateInput.min = tomorrowFormatted;
+
+        // Set default date to 7 days from now
+        const nextWeek = new Date(today);
+        nextWeek.setDate(nextWeek.getDate() + 7);
+        const nextWeekFormatted = nextWeek.toISOString().split('T')[0];
+        travelDateInput.value = nextWeekFormatted;
+    }
+
     // Update UI based on login status
     updateUserUI();
-    
-    // Demo users for testing
-    if (!localStorage.getItem('users')) {
-        const demoUsers = [
-            {
-                id: 1,
-                name: "Demo User",
-                email: "demo@traveltimеai.com",
-                password: "demo123",
-                createdAt: new Date().toISOString()
-            }
-        ];
-        localStorage.setItem('users', JSON.stringify(demoUsers));
-    }
 });
