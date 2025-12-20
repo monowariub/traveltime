@@ -1,0 +1,1 @@
+<?php require_once __DIR__.'/../../config/auth.php'; roles_allowed(['packaging','admin']); include __DIR__.'/../../includes/header.php'; echo '<div class="max-w-md mx-auto p-6 bg-white border rounded-2xl mt-10"><h1 class="text-xl font-bold">Label</h1></div>'; include __DIR__.'/../../includes/footer.php'; ?>
