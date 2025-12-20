@@ -132,9 +132,11 @@ export async function sendChatMessage(userId, userName, messageText, messageType
     } catch (e) { return { success: false }; }
 }
 
-export async function getChatMessages(limit = 50) {
+export async function getChatMessages(limit = 50, userId = null) {
     try {
-        const response = await fetch(`${API_BASE}/data.php?action=messages&limit=${limit}`);
+        let url = `${API_BASE}/data.php?action=messages&limit=${limit}`;
+        if (userId) url += `&user_id=${userId}`;
+        const response = await fetch(url);
         return await response.json();
     } catch (e) { return { success: false, data: [] }; }
 }

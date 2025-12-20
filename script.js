@@ -491,12 +491,42 @@ if (logoutBtn) {
 }
 
 // ========== CHATBOT FUNCTIONS ==========
+// Load chat history
+async function loadChatHistory() {
+    if (!currentUser) return; // Only load for logged in users
+
+    // Fetch last 20 messages for this user
+    const result = await getChatMessages(20, currentUser.uid);
+    if (result.success && result.data) {
+        chatbotMessages.innerHTML = ''; // Clear current
+
+        // Messages come from API reversed (latest first usually for limit query in backend) 
+        // OR the API itself now does array_reverse. 
+        // My PHP code does `array_reverse($results)` before sending.
+        // So frontend receives them in Chronological order (Oldest first).
+
+        const messages = result.data; // Already reversed in PHP to be chronological!
+
+        messages.forEach(msg => {
+            // Simply render
+            const sender = msg.messageType === 'bot' ? 'bot' : (msg.userId === currentUser.uid ? 'user' : null);
+            if (sender) {
+                addChatMessage(msg.messageText, sender);
+            }
+        });
+
+        // Scroll to bottom
+        chatbotMessages.scrollTop = chatbotMessages.scrollHeight;
+    }
+}
+
 // Toggle chatbot visibility
 if (chatbotToggle) {
     chatbotToggle.addEventListener('click', () => {
         chatbotWidget.classList.toggle('show');
         if (chatbotWidget.classList.contains('show')) {
             chatbotInput.focus();
+            loadChatHistory(); // Load history when opened
         }
     });
 }
@@ -525,10 +555,15 @@ async function addChatMessageWithService(text, sender) {
     addChatMessage(text, sender);
 
     // Save if user is logged in
-    if (currentUser && sender === 'user') {
-        await sendChatMessage(currentUser.uid, currentUserData ? currentUserData.name : 'User', text, 'user');
-    } else if (sender === 'bot') {
-        await sendChatMessage('bot', 'TravelTime AI', text, 'bot');
+    if (currentUser) {
+        // Log user message
+        if (sender === 'user') {
+            await sendChatMessage(currentUser.uid, currentUserData ? currentUserData.name : 'User', text, 'user');
+        }
+        // Log bot response associated with this user
+        else if (sender === 'bot') {
+            await sendChatMessage(currentUser.uid, 'TravelTime AI', text, 'bot');
+        }
     }
 }
 

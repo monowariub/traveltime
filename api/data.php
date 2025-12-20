@@ -96,9 +96,19 @@ function handleDestinations($conn, $method) {
 function handleMessages($conn, $method) {
     if ($method === 'GET') {
         $limit = isset($_GET['limit']) ? intval($_GET['limit']) : 50;
-        $stmt = $conn->prepare("SELECT * FROM messages ORDER BY created_at DESC LIMIT ?");
-        $stmt->bindParam(1, $limit, PDO::PARAM_INT);
-        $stmt->execute();
+        $userId = isset($_GET['user_id']) ? $_GET['user_id'] : null;
+        
+        if ($userId) {
+            $stmt = $conn->prepare("SELECT * FROM messages WHERE user_id = ? ORDER BY created_at DESC LIMIT ?");
+            $stmt->bindParam(1, $userId);
+            $stmt->bindParam(2, $limit, PDO::PARAM_INT);
+            $stmt->execute();
+        } else {
+            $stmt = $conn->prepare("SELECT * FROM messages ORDER BY created_at DESC LIMIT ?");
+            $stmt->bindParam(1, $limit, PDO::PARAM_INT);
+            $stmt->execute();
+        }
+        
         $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
         // Format for frontend
